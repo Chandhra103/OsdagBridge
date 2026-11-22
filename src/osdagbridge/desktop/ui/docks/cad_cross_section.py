@@ -5,8 +5,8 @@ Author: Arushi
 """
 
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit, QMessageBox
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, QEvent
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon, QPixmap
 from osdagbridge.core.utils.common import *
 from osdagbridge.desktop.cad.irc5_geometry import (
@@ -51,6 +51,8 @@ class CrossSectionCADWidget(QWidget):
         self.cross_section_hover_zones = []  # Store hover zones as (QRectF, element_type)
         self.interactive_hover = True
         self.highlighted_girder_index = -1
+        self._dimension_hits = []
+        self._dimension_editor = None
 
         # Scale factor for diagram size (1.0 = normal, <1.0 = smaller)
         self.scale_factor = 1.0
@@ -729,6 +731,7 @@ class CrossSectionCADWidget(QWidget):
         # clear hover labels and zones at start of each paint
         self.hover_labels = []
         self.cross_section_hover_zones = []
+        self._dimension_hits = []
         
         painter = QPainter(self)
         try:
@@ -846,8 +849,13 @@ class CrossSectionCADWidget(QWidget):
             metrics = painter.fontMetrics()
             text_width = metrics.boundingRect(text).width()
             
-            self.draw_text_with_background(painter, text_x - text_width/2, text_y, text, 
+            label_x = text_x - text_width/2
+            self.draw_text_with_background(painter, label_x, text_y, text,
                                         QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)
+            if text.startswith("Carriageway Width"):
+                self._dimension_hits.append((QRectF(label_x - 3, text_y - 18, text_width + 6, 22), "carriageway_width", 1000.0, "m"))
+            elif text.startswith("Girder Spacing"):
+                self._dimension_hits.append((QRectF(label_x - 3, text_y - 18, text_width + 6, 22), "girder_spacing", 1000.0, "m"))
         else:
             top_arrow = [
                 QPointF(x1, y1),
@@ -2287,6 +2295,132 @@ class CrossSectionCADWidget(QWidget):
             
             self.draw_text_with_background(painter, text_x, text_y, text,
                                         QColor(255, 255, 255, 255), QColor(0, 0, 0), 9, False)
+            if text.startswith("Deck Thickness"):
+                self._dimension_hits.append((QRectF(text_x - 3, text_y - 18, text_width + 6, 22), "deck_thickness", 1.0, "mm"))
+
+    def mouseDoubleClickEvent(self, event):
+        pos = event.position()
+        for rect, key, factor, unit in reversed(self._dimension_hits):
+            if rect.contains(pos):
+                self._begin_dimension_edit(rect, key, factor, unit)
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event):
+        editor = self._dimension_editor
+        if editor is not None and editor.isVisible() and not editor.geometry().contains(event.position().toPoint()):
+            self._finish_dimension_edit()
+            if self._dimension_editor is not None:
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def _begin_dimension_edit(self, rect, key, factor, unit):
+        if self._dimension_editor is not None:
+            self._finish_dimension_edit()
+        value = float(self.params[key]) / factor
+        editor = QLineEdit(self)
+        editor.setGeometry(rect.toAlignedRect())
+        editor.setText(f"{value:g}")
+        editor.setAlignment(Qt.AlignCenter)
+        editor.setToolTip(f"Enter value in {unit}")
+        editor.returnPressed.connect(self._finish_dimension_edit)
+        editor.installEventFilter(self)
+        editor._dimension_key = key
+        editor._dimension_factor = factor
+        self._dimension_editor = editor
+        editor.selectAll()
+        editor.show()
+        editor.setFocus()
+
+    def eventFilter(self, obj, event):
+        if obj is self._dimension_editor and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Escape:
+                obj.removeEventFilter(self)
+                obj.deleteLater()
+                self._dimension_editor = None
+                self.setFocus()
+                return True
+        return super().eventFilter(obj, event)
+
+    def _finish_dimension_edit(self):
+        editor = self._dimension_editor
+        if editor is None:
+            return
+        text = editor.text().strip()
+        try:
+            from osdagbridge.desktop.cad_dimension_edit import parse_dimension_value
+            value = parse_dimension_value(text)
+        except ValueError:
+            QMessageBox.warning(self, "Invalid dimension", "Enter a positive numerical value.")
+            editor.setFocus()
+            editor.selectAll()
+            return
+        key = editor._dimension_key
+        mm_value = value * editor._dimension_factor
+        old_value = float(self.params[key])
+        self.params[key] = mm_value
+        # Find the owning Additional Inputs dialog or main input dock and synchronize it.
+        root = self.window()
+        dialog = root if hasattr(root, "working_input_dict") else None
+        widget_key = {"carriageway_width": KEY_CARRIAGEWAY_WIDTH,
+                      "girder_spacing": KEY_TS_GIRDER_SPACING,
+                      "deck_thickness": KEY_TS_DECK_THICKNESS}[key]
+        dict_value = mm_value / 1000.0 if key != "deck_thickness" else mm_value
+        if dialog is not None:
+            layout_keys = (KEY_TS_GIRDER_SPACING, KEY_TS_DECK_OVERHANG,
+                           KEY_TS_NO_OF_GIRDERS, KEY_TS_OVERALL_WIDTH)
+            before = {k: dialog.working_input_dict.get(k) for k in (widget_key, *layout_keys)}
+            was_modified = dialog.is_modified
+            dialog._update_input_dict(widget_key, dict_value)
+            field = dialog.findChild(QLineEdit, widget_key)
+            if field:
+                field.blockSignals(True); field.setText(f"{dict_value:g}"); field.blockSignals(False)
+            layout_ok = True
+            if key in {"carriageway_width", "girder_spacing"}:
+                if key == "carriageway_width":
+                    layout_ok = dialog.update_girder_layout("girders")
+                else:
+                    layout_ok = dialog.update_girder_layout("spacing")
+            if not layout_ok:
+                for restore_key, restore_value in before.items():
+                    if restore_value is None:
+                        dialog.working_input_dict.pop(restore_key, None)
+                    else:
+                        dialog.working_input_dict[restore_key] = restore_value
+                    restore_field = dialog.findChild(QLineEdit, restore_key)
+                    if restore_field:
+                        restore_field.blockSignals(True)
+                        restore_field.setText("" if restore_value is None else str(restore_value))
+                        restore_field.blockSignals(False)
+                self.params[key] = old_value
+                dialog._update_additional_input_cad()
+                dialog.is_modified = was_modified
+                editor.removeEventFilter(self); editor.deleteLater(); self._dimension_editor = None
+                self.update()
+                return
+            dict_value = dialog.working_input_dict.get(widget_key, dict_value)
+            dialog._update_additional_input_cad()
+            host = dialog.parentWidget()
+            while host is not None:
+                dock = getattr(host, "input_dock", None)
+                field = dock.findChild(QLineEdit, widget_key) if dock else None
+                if field:
+                    field.setText(f"{dict_value:g}")
+                    field.editingFinished.emit()
+                    break
+                host = host.parentWidget()
+        else:
+            dock = getattr(root, "input_dock", None)
+            field = dock.findChild(QLineEdit, widget_key) if dock else None
+            if field:
+                field.setText(f"{dict_value:g}")
+                field.editingFinished.emit()
+        editor.removeEventFilter(self); editor.deleteLater(); self._dimension_editor = None
+        if old_value != mm_value:
+            self.update()
+
     def add_cross_section_hover_labels(self, painter, carriageway_start_x, carriageway_end_x,
                     left_barrier_x, right_barrier_x, deck_top_y, deck_bottom_y,
                     deck_thick_px, positions, base_y, scale, n, fp_config,

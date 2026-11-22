@@ -1,0 +1,25 @@
+name: Python tests
+
+on:
+  push:
+    branches: [dev, task2-ui-cad-transverse-plotting]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test]'
+      - name: Compile application modules
+        run: python -m compileall -q src/osdagbridge
+      - name: Run unit tests
+        run: python -m pytest -q tests/unit

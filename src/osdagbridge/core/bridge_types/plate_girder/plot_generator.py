@@ -49,6 +49,68 @@ DISP_DISPLAY = {
     "Dx": "D$_x$", "Dy": "D$_y$", "Dz": "D$_z$",
 }
 
+
+def build_figure_transverse(result_data, nodes, members, loadcase: str,
+                            member_tags, component: str):
+    """Plot available analysis results for selected transverse elements only.
+
+    No missing values are synthesized: if the selected load case/component has
+    no actual results for these elements/nodes, the caller receives ValueError.
+    Force values are converted from N/N·m to kN/kN·m; displacements from m to mm.
+    """
+    from .transverse_results import extract_element_component, extract_node_component
+
+    tags = [int(tag) for tag in member_tags]
+    if not tags:
+        raise ValueError("No transverse members are available for this analysis.")
+    fig = Figure(figsize=(11, 6), dpi=110, facecolor="white")
+    ax = fig.add_subplot(111, projection="3d", facecolor="white")
+    drawn = 0
+    if component in FORCE_MAP:
+        rows = extract_element_component(result_data, loadcase, tags, component)
+        if not rows:
+            raise ValueError(f"No {component} force results are available for '{loadcase}'.")
+        scale = 1.0 / 1000.0
+        unit = "kN·m" if component in {"Tx", "My", "Mz"} else "kN"
+        for tag, first, second in rows:
+            conn = members.get(tag, members.get(str(tag)))
+            if not conn or conn[0] not in nodes or conn[1] not in nodes:
+                continue
+            a, b = nodes[conn[0]], nodes[conn[1]]
+            ax.plot([a[0], b[0]], [a[2], b[2]], [first * scale, second * scale],
+                    color="#1565C0", marker="o", linewidth=2.2)
+            ax.text(a[0], a[2], first * scale, f"{first * scale:.3g}", fontsize=8)
+            ax.text(b[0], b[2], second * scale, f"{second * scale:.3g}", fontsize=8)
+            drawn += 1
+    elif component in DISP_MAP:
+        node_tags = list(dict.fromkeys(
+            int(node) for tag in tags
+            for node in members.get(tag, members.get(str(tag), ()))
+        ))
+        rows = dict(extract_node_component(result_data, loadcase, node_tags, component))
+        if not rows:
+            raise ValueError(f"No {component} displacement results are available for '{loadcase}'.")
+        unit = "mm"
+        for tag in tags:
+            conn = members.get(tag, members.get(str(tag)))
+            if not conn or any(node not in nodes or node not in rows for node in conn):
+                continue
+            a, b = nodes[conn[0]], nodes[conn[1]]
+            va, vb = rows[conn[0]] * 1000.0, rows[conn[1]] * 1000.0
+            ax.plot([a[0], b[0]], [a[2], b[2]], [va, vb],
+                    color="#C62828", marker="o", linewidth=2.2)
+            drawn += 1
+    else:
+        raise ValueError(f"Unsupported result component: {component}")
+    if not drawn:
+        raise ValueError(f"Result data for '{loadcase}' cannot be associated with selected members.")
+    ax.set_xlabel("Bridge span X (m)")
+    ax.set_ylabel("Bridge width Z (m)")
+    ax.set_zlabel(f"{component} ({unit})")
+    ax.set_title(f"Transverse Member Results — {component} — {loadcase}")
+    ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.5)
+    return fig, {}
+
 # View settings (elevation/azimuth for a near-front-elevation look)
 DEFAULT_ELEV = 10
 DEFAULT_AZIM = -90

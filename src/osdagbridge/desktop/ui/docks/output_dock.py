@@ -863,7 +863,9 @@ class OutputDock(QWidget):
         if combo_analysis is not None:
             combo_analysis.blockSignals(True)
             combo_analysis.clear()
-            combo_analysis.addItems(["All"] + items)
+            combo_analysis.addItems([
+                "All", "End Diaphragms", "Intermediate Cross Bracings", *items,
+            ])
             combo_analysis.setCurrentIndex(0)
             combo_analysis.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
             combo_analysis.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
@@ -947,7 +949,6 @@ class OutputDock(QWidget):
         merged = {**input_dict, **ai_dict, **input_d_values, **out_dict}
         dlg = GenerateResultsDialog(parent=None, input_dict=merged, bridge = self.backend)
         dlg.exec()
-
 
 
 

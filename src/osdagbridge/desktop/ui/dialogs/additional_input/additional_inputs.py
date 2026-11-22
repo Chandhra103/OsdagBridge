@@ -6,8 +6,8 @@ from copy import deepcopy
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTabBar, QLabel, QLineEdit,
-    QComboBox, QPushButton, QCheckBox, QSizePolicy,
-    QDialog, QSizePolicy, QSizeGrip,
+    QComboBox, QPushButton, QCheckBox, QRadioButton, QSpinBox, QDoubleSpinBox, QSizePolicy,
+    QDialog, QSizePolicy, QSizeGrip, QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QEvent
 from PySide6.QtGui import QDoubleValidator
@@ -57,6 +57,10 @@ class AdditionalInputs(QDialog):
  
         # Store all Compute functions to be called at Design
         self._compute_functions = []
+        self.is_modified = False
+        self._loading_inputs = False
+        self._allow_close = False
+        self._modified_tracking_connected = False
 
         self.setObjectName("AdditionalInputs")
         self.setMinimumSize(900, 520)
@@ -229,6 +233,7 @@ class AdditionalInputs(QDialog):
         return super().eventFilter(obj, event)
 
     def set_input_dictionary(self, input_dict: dict):  # lifecycle: sets default/working dicts and wires END_CONNECTORS on first open
+        self._loading_inputs = True
         self.default_input_dict = input_dict
         self.working_input_dict = deepcopy(input_dict)
 
@@ -245,6 +250,29 @@ class AdditionalInputs(QDialog):
             self.interacted_first = False
             from osdagbridge.core.bridge_types.plate_girder.ui_fields_additional_input import END_CONNECTORS
             UIBuilder.wire_end_connectors(END_CONNECTORS, ai=self)
+        self._connect_modified_tracking()
+        self.is_modified = False
+        self._loading_inputs = False
+
+    def _connect_modified_tracking(self) -> None:
+        """Connect user-edit signals once, after all dialog widgets exist."""
+        if self._modified_tracking_connected:
+            return
+        for field in self.findChildren(QLineEdit):
+            field.textEdited.connect(self._mark_modified)
+        for combo in self.findChildren(QComboBox):
+            combo.currentIndexChanged.connect(self._mark_modified)
+        for widget_type in (QCheckBox, QRadioButton):
+            for control in self.findChildren(widget_type):
+                control.toggled.connect(self._mark_modified)
+        for widget_type in (QSpinBox, QDoubleSpinBox):
+            for control in self.findChildren(widget_type):
+                control.valueChanged.connect(self._mark_modified)
+        self._modified_tracking_connected = True
+
+    def _mark_modified(self, *_args) -> None:
+        if not self._loading_inputs:
+            self.is_modified = True
 
     def set_defaults(self) -> None:  # lifecycle: populates all widgets from working_input_dict; called at init time only
         """
@@ -312,6 +340,8 @@ class AdditionalInputs(QDialog):
         else:
             normalized = "Optimized"
 
+        if self.working_input_dict.get(KEY_DESIGN_MODE) != normalized and not self._loading_inputs:
+            self.is_modified = True
         self.working_input_dict[KEY_DESIGN_MODE] = normalized
         is_optimized = normalized == "Optimized"
 
@@ -453,11 +483,14 @@ class AdditionalInputs(QDialog):
         if active_tab is None:
             return
 
+        before = deepcopy(self.working_input_dict)
         if hasattr(active_tab, "reset_active_tab_defaults"):
             active_tab.reset_active_tab_defaults()
+            self.is_modified = self.is_modified or self.working_input_dict != before
             return
         elif hasattr(active_tab, "reset_defaults"):
             active_tab.reset_defaults()
+            self.is_modified = self.is_modified or self.working_input_dict != before
             return
 
         for widget in active_tab.findChildren(QWidget):
@@ -496,6 +529,7 @@ class AdditionalInputs(QDialog):
                 widget.blockSignals(False)
 
             self.working_input_dict[name] = value
+        self.is_modified = self.is_modified or self.working_input_dict != before
 
     def showEvent(self, event):  # Qt event: refreshes active sub-tabs when dialog is shown or reopened
         super().showEvent(event)
@@ -508,6 +542,9 @@ class AdditionalInputs(QDialog):
 
     def _save_inputs(self):  # on_change: validates all tabs then commits working_input_dict and emits CAD update signal
 
+        if not self._validate_custom_values():
+            return False
+
         # Flush the currently-displayed stiffener member's widgets before committing.
         # _save_stiffener_member_data otherwise only runs when switching *away* from a
         # member (via _on_stiffener_member_load), so the last-viewed girder (e.g. G4)
@@ -517,6 +554,7 @@ class AdditionalInputs(QDialog):
             self._save_stiffener_member_data(combo.currentText().strip())
 
         self.default_input_dict.update(self.working_input_dict)
+        self.is_modified = False
         from osdagbridge.desktop.ui.docks.cad_cross_section import CrossSectionCADWidget
         cad = self.findChild(CrossSectionCADWidget, KEY_TS_CAD_PREVIEW)
         if cad:
@@ -528,6 +566,79 @@ class AdditionalInputs(QDialog):
             buttons=["OK"],
             dialogType=MessageBoxType.Success,
         ).exec()
+        return True
+
+    def _validate_custom_values(self) -> bool:
+        """Reject blank values for enabled mode/value controls currently set to Custom."""
+        selectors = [*self.findChildren(QComboBox), *self.findChildren(QRadioButton)]
+        for selector in selectors:
+            if not selector.isEnabled() or selector.isHidden():
+                continue
+            selected = (selector.currentText() if isinstance(selector, QComboBox)
+                        else selector.text() if selector.isChecked() else "")
+            if selected.strip().lower() not in {"custom", "customized"}:
+                continue
+            name = selector.objectName()
+            bases = [name[:-5]] if name.endswith(".mode") else [name]
+            value_widget = None
+            for base in bases:
+                for suffix in (".value", ".custom_value"):
+                    value_widget = (self.findChild(QLineEdit, base + suffix)
+                                    or self.findChild(QComboBox, base + suffix))
+                    if value_widget is not None:
+                        break
+                if value_widget is not None:
+                    break
+            if value_widget is None or not value_widget.isEnabled() or value_widget.isHidden():
+                continue
+            parameter = value_widget.property("parameterName") or selector.property("parameterName")
+            if not parameter:
+                label = self.findChild(QLabel, bases[0] + "_label")
+                parameter = label.text().rstrip(":") if label else name.removesuffix(".mode").replace(".", " ")
+            from osdagbridge.desktop.input_state import custom_value_error
+            value = value_widget.text() if isinstance(value_widget, QLineEdit) else value_widget.currentText()
+            error = custom_value_error(parameter, value, selected_custom=True,
+                                       enabled=value_widget.isEnabled(), applicable=not value_widget.isHidden())
+            if error is None:
+                continue
+            CustomMessageBox(
+                title="Input Error", text=error,
+                buttons=["OK"], dialogType=MessageBoxType.Warning,
+            ).exec()
+            value_widget.setFocus()
+            return False
+        return True
+
+    def _confirm_discard_changes(self) -> bool:
+        if not self.is_modified or self._allow_close:
+            return True
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("Unsaved Changes")
+        box.setText("You have unsaved changes. Closing this window will discard them. Do you want to proceed?")
+        discard = box.addButton("Discard", QMessageBox.DestructiveRole)
+        cancel = box.addButton("Cancel", QMessageBox.RejectRole)
+        box.setDefaultButton(cancel)
+        box.exec()
+        return box.clickedButton() is discard
+
+    def closeEvent(self, event):
+        if self._confirm_discard_changes():
+            self._allow_close = True
+            event.accept()
+        else:
+            event.ignore()
+
+    def reject(self):
+        self.done(QDialog.Rejected)
+
+    def accept(self):
+        self.done(QDialog.Accepted)
+
+    def done(self, result):
+        if self._confirm_discard_changes():
+            self._allow_close = True
+            super().done(result)
 
     def _show_validation_errors(self, errors):  # utility: displays validation error list in a warning popup
         message = "\n\n".join(f"• {err}" for err in errors)
@@ -598,6 +709,7 @@ class AdditionalInputs(QDialog):
         self._update_additional_input_cad()
 
     def _update_input_dict(self, key: str, value: str):  # utility: writes a value to working_input_dict, falling back to default if empty
+        old_value = self.working_input_dict.get(key)
         if value is None or value == "":
             self.working_input_dict[key] = self.default_input_dict.get(key)
         else:
@@ -608,6 +720,8 @@ class AdditionalInputs(QDialog):
                     self.working_input_dict[key] = float(value)
                 except (ValueError, TypeError):
                     self.working_input_dict[key] = value
+        if not self._loading_inputs and self.working_input_dict.get(key) != old_value:
+            self.is_modified = True
 
     # ── Tab Active State Utility ─────────────────────────────────────────────────
 

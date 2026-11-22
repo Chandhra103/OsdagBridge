@@ -5,8 +5,8 @@ Author: Arushi
 """
 from osdagbridge.core.utils.common import *
 import math
-from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize
+from PySide6.QtWidgets import QWidget, QPushButton, QScrollArea, QLineEdit, QMessageBox
+from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QSize, QEvent
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPolygonF, QIcon
 from .cad_cross_section import CrossSectionCADWidget
 
@@ -38,6 +38,8 @@ class TopViewCADWidget(QWidget):
         # top view hover tracking 
         self.top_view_hover_zones = []  # list of (QRectF, element_type)
         self.hovered_top_view_element = None
+        self._dimension_hits = []
+        self._dimension_editor = None
         
         # Zoom level for this widget
         self.zoom_level = 1.0
@@ -462,6 +464,85 @@ class TopViewCADWidget(QWidget):
         self.zoom_reset() # Auto-fit height on parameter change
         self.update()
     
+    def mouseDoubleClickEvent(self, event):
+        for rect, key, factor, unit in reversed(self._dimension_hits):
+            if rect.contains(event.position()):
+                self._begin_dimension_edit(rect, key, factor, unit)
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event):
+        editor = self._dimension_editor
+        if editor is not None and editor.isVisible() and not editor.geometry().contains(event.position().toPoint()):
+            self._finish_dimension_edit()
+            if self._dimension_editor is not None:
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def _begin_dimension_edit(self, rect, key, factor, unit):
+        if self._dimension_editor is not None:
+            self._finish_dimension_edit()
+        editor = QLineEdit(self)
+        editor.setGeometry(rect.toAlignedRect())
+        editor.setText(f"{float(self.params[key]) / factor:g}")
+        editor.setAlignment(Qt.AlignCenter)
+        editor.setToolTip(f"Enter value in {unit}")
+        editor._dimension_key = key
+        editor._dimension_factor = factor
+        editor.returnPressed.connect(self._finish_dimension_edit)
+        editor.installEventFilter(self)
+        self._dimension_editor = editor
+        editor.selectAll(); editor.show(); editor.setFocus()
+
+    def eventFilter(self, obj, event):
+        if obj is self._dimension_editor and event.type() == QEvent.KeyPress and event.key() == Qt.Key_Escape:
+            obj.removeEventFilter(self); obj.deleteLater(); self._dimension_editor = None
+            self.setFocus()
+            return True
+        return super().eventFilter(obj, event)
+
+    def _finish_dimension_edit(self):
+        editor = self._dimension_editor
+        if editor is None:
+            return
+        try:
+            from osdagbridge.desktop.cad_dimension_edit import parse_dimension_value
+            value = parse_dimension_value(editor.text())
+        except ValueError:
+            QMessageBox.warning(self, "Invalid dimension", "Enter a positive numerical value.")
+            editor.setFocus(); editor.selectAll(); return
+        key = editor._dimension_key
+        mm_value = value * editor._dimension_factor
+        self.params[key] = mm_value
+        dict_value = mm_value / 1000.0
+        root = self.window()
+        dialog = root if hasattr(root, "working_input_dict") else None
+        if dialog is not None:
+            from osdagbridge.core.utils.common import KEY_SPAN
+            dialog._update_input_dict(KEY_SPAN, dict_value)
+            field = dialog.findChild(QLineEdit, KEY_SPAN)
+            if field:
+                field.blockSignals(True); field.setText(f"{dict_value:g}"); field.blockSignals(False)
+            seg = dialog.findChild(QWidget, KEY_MP_GD_SEGMENT_TABLE)
+            if seg is not None and hasattr(seg, "set_total_span"):
+                seg.set_total_span(dict_value)
+            host = dialog.parentWidget()
+            while host is not None:
+                dock = getattr(host, "input_dock", None)
+                field = dock.findChild(QLineEdit, KEY_SPAN) if dock else None
+                if field:
+                    field.setText(f"{dict_value:g}"); field.editingFinished.emit(); break
+                host = host.parentWidget()
+        else:
+            dock = getattr(root, "input_dock", None)
+            field = dock.findChild(QLineEdit, KEY_SPAN) if dock else None
+            if field:
+                field.setText(f"{dict_value:g}"); field.editingFinished.emit()
+        editor.removeEventFilter(self); editor.deleteLater(); self._dimension_editor = None
+        self.update()
+
     def mouseMoveEvent(self, event):
         """Handle mouse hover for top view"""
         pos = event.position() if hasattr(event, 'position') else event.pos()
@@ -480,6 +561,7 @@ class TopViewCADWidget(QWidget):
     def paintEvent(self, event):
         # clear hover zones at start of each paint
         self.top_view_hover_zones = []
+        self._dimension_hits = []
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -1301,6 +1383,12 @@ class TopViewCADWidget(QWidget):
             painter, x1_span, dim_y2, x2_span, dim_y2,
             label_span, last_girder_y
         )
+        span_text_width = painter.fontMetrics().boundingRect(label_span).width()
+        span_label_x = (x1_span + x2_span) / 2 - span_text_width / 2
+        self._dimension_hits.append((
+            QRectF(span_label_x - 4, dim_y2 - 32, span_text_width + 8, 26),
+            "span_length", 1000.0, "m",
+        ))
 
         # GIRDER SPACING dimension (always visible)
         if n > 1:

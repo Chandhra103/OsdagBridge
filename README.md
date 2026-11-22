@@ -114,6 +114,37 @@ osdagbridge report project.yaml report.pdf
 python -m osdagbridge.desktop
 ```
 
+### Task 2: CAD editing and analysis plots
+
+In the typical-section cross-section view, double-click the displayed Carriageway
+Width, Girder Spacing, or Deck Thickness label to edit it inline. In the plan/top
+view, double-click Span Length. Press Enter or click outside to validate and
+apply a value; press Escape to cancel. Overhang, Overall Bridge Width, and
+Bracing Spacing remain derived, read-only dimensions. Values are synchronized
+with the corresponding input and layout calculation; invalid values are not
+applied.
+
+Additional Inputs rejects blank custom values before saving and warns when a
+modified dialog is dismissed. After analysis, the analysis member selector
+offers End Diaphragms and Intermediate Cross Bracings. These views use the
+analyzed load-case data; a clear no-data message is shown when a result is not
+available for the selected member/component. The existing longitudinal girder
+plots remain available.
+
+For a supported development environment, use Python 3.11 or 3.12 and the
+project's Conda environment (`environment.yml`) where possible. The desktop
+runtime also needs the existing Osdag installation and its Qt/CAD dependencies.
+
+```bash
+conda env create -f environment.yml
+conda activate osdagbridge-env
+python -m osdagbridge.desktop
+```
+
+Run focused tests with `pytest -q tests/unit`. OpenSeesPy and the full desktop
+stack are required to verify solver-backed and interactive GUI behavior; the
+pure-Python unit tests do not substitute for those runtime checks.
+
 ### Web Application
 
 Backend:

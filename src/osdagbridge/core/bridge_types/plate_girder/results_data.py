@@ -390,7 +390,7 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
     standard_groups = [
         "edge_beam", "exterior_main_beam_1", "exterior_main_beam_2",
         "interior_main_beam", "start_edge", "end_edge", "transverse_slab",
-        "shell_slab"
+        "shell_slab", "end_diaphragm", "end_diaphragms"
     ]
     groups = {}
     for group_name in standard_groups:
@@ -507,6 +507,17 @@ def _build_full_data(model, edge_dist: float = 0.0, dataset=None, lazy: bool = F
             }
 
     return data
+
+
+def extract_transverse_member_results(result_data: Mapping, loadcase: str,
+                                      element_tags, component: str):
+    """Read a transverse element component via the canonical result dictionary.
+
+    This facade is the supported extraction entry point for transverse plots;
+    it returns actual analysis results only and leaves absent data empty.
+    """
+    from .transverse_results import extract_element_component
+    return extract_element_component(result_data, loadcase, element_tags, component)
 
 
 def _dump_crossbracing(data: dict) -> None:

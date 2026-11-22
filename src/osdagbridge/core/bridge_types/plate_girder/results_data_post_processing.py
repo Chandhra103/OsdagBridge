@@ -371,6 +371,8 @@ OUTPUT_KEYS = [
     "transverse_slab",
     "longitudinal_members",
     "transverse_members",
+    "end_diaphragms",
+    "transverse_groups",
     "girders",
     "crossbracings",
     "forces",
@@ -383,13 +385,25 @@ OUTPUT_KEYS = [
 def post_process(data: dict) -> dict:
 
     members_dict = {str(k): v for k, v in data["members"].items()}
-    node_coords = {str(k): v for k, v in data["nodes"].items()}
+    node_coords  = {str(k): v for k, v in data["nodes"].items()}
 
     # Capture raw transverse_slab IDs from groups before the loop pops them
     cb_raw_ids = (
         data.get("groups", {}).get("transverse_slab")
         or data.get("transverse_slab")
         or []
+    )
+    diaphragm_raw_ids = (
+        data.get("groups", {}).get("end_diaphragm")
+        or data.get("groups", {}).get("end_diaphragms")
+        or data.get("end_diaphragm")
+        or data.get("end_diaphragms")
+        # The live ospgrillage model represents its two end transverse frames
+        # as start_edge/end_edge element groups, not as end_diaphragm.
+        or [
+            *data.get("groups", {}).get("start_edge", []),
+            *data.get("groups", {}).get("end_edge", []),
+        ]
     )
 
     for group in GROUP_KEYS:
@@ -433,5 +447,20 @@ def post_process(data: dict) -> dict:
     rebuild_components(data)
     attach_girders(data)
     attach_crossbracings(data, cb_raw_ids, members_dict, node_coords)
+    diaphragm_chains = build_chains(diaphragm_raw_ids, members_dict)
+    data["end_diaphragms"] = [
+        {"members": chain,
+         "start": compute_mid_coords([chain[0]], members_dict, node_coords),
+         "end": compute_mid_coords([chain[-1]], members_dict, node_coords),
+         "mid": compute_mid_coords(chain, members_dict, node_coords)}
+        for chain in diaphragm_chains if chain
+    ]
+    data["transverse_groups"] = {
+        "end_diaphragm": [str(tag) for tag in diaphragm_raw_ids],
+        "intermediate_cross_bracing": [
+            str(tag) for item in data.get("crossbracings", [])
+            for tag in item.get("members", [])
+        ],
+    }
 
     return {k: data[k] for k in OUTPUT_KEYS if k in data}
