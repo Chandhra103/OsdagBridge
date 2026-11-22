@@ -22,7 +22,7 @@ OsdagBridge is a Python engineering application with an existing plate-girder co
 
 ## Verification
 
-The Task 2 branch's GitHub Actions run completed successfully, and the branch was published at commit `0b687d6e58507b79e4c1a841cb813821847f2e26`. On the new development branch, the pre-change baseline had 48 passing tests. The focused tests added for CLI starter-file behavior, preliminary JSON validation, and a footpath geometry correction passed 14/14. The full post-change suite must be run before finalizing this branch. Automated tests do not substitute for live GUI testing or engineering benchmark verification.
+The Task 2 branch's GitHub Actions run completed successfully, and the branch was published at commit `0b687d6e58507b79e4c1a841cb813821847f2e26`. On the new development branch, the pre-change baseline had 48 passing tests. The post-change suite passed 62/62; this includes focused CLI starter-file behavior, preliminary JSON validation, footpath geometry, and unsupported-native-solver coverage. Automated tests do not substitute for live GUI testing or engineering benchmark verification.
 
 ## Evidence and screenshots
 
