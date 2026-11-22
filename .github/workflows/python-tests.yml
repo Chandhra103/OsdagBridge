@@ -2,7 +2,7 @@ name: Python tests
 
 on:
   push:
-    branches: [dev, task2-ui-cad-transverse-plotting]
+    branches: [dev, task2-ui-cad-transverse-plotting, complete-osdagbridge-development]
   pull_request:
     branches: [dev]
 
@@ -21,5 +21,5 @@ jobs:
           python -m pip install -e '.[test]'
       - name: Compile application modules
         run: python -m compileall -q src/osdagbridge
-      - name: Run unit tests
-        run: python -m pytest -q tests/unit
+      - name: Run test suite
+        run: python -m pytest -q
