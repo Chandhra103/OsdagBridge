@@ -104,7 +104,7 @@ class FootpathLoad(BridgeComponent):
     def to_global(self) -> PatchLoadGeometry:
         return PatchLoadGeometry(
             p1=Point(0.0, self.start),
-            p2=Point(self.bridge.span, 0.0),
+            p2=Point(self.bridge.span, self.start),
             p3=Point(self.bridge.span, self.start + self.width),
             p4=Point(0.0, self.start + self.width),
         )

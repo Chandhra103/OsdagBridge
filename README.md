@@ -1,206 +1,84 @@
 # OsdagBridge
 
-OsdagBridge is a modular, shared-core software plugin for the analysis and design of steel bridges within the Osdag ecosystem.  
-It supports desktop (PySide6), web (Django + React), and CLI interfaces through a unified Python core.
+OsdagBridge is an open-source Python project for bridge modelling and analysis, with a substantial plate-girder workflow and a PySide6 desktop application. The repository also contains early web scaffolding and a small project-file CLI; those interfaces are not yet end-to-end engineering applications.
 
-The system currently supports:
-- Plate Girder Bridges  
- 
+> **Status:** This repository is under active development. The desktop plate-girder workflow is the principal implemented interface. The CLI currently handles a lightweight JSON project envelope only. The Django and React directories are scaffolding, not a usable or deployed web application. No general solver interchangeability is claimed.
 
-Additional bridge types can be added through the plugin architecture.
+## Current capabilities
 
----
+- Plate-girder input, design/analysis orchestration, reporting and visualization code in `src/osdagbridge/core/bridge_types/plate_girder/` and `src/osdagbridge/desktop/`.
+- Task 2 desktop improvements on the [`task2-ui-cad-transverse-plotting` branch](https://github.com/Chandhra103/OsdagBridge/tree/task2-ui-cad-transverse-plotting): inline CAD dimension editing, additional-input state/validation, and transverse member plots.
+- CLI commands to create, validate, and inspect a small JSON project-file envelope. This is not the full bridge-design input schema and does not run analysis.
+- A read-only starter geometry and lightweight schema test suite. Validation of this small envelope is not engineering validation.
 
-## Key Features
+## Requirements and installation
 
-### Shared Core Architecture
-All numerical logic and I/O are implemented once in `osdagbridge.core`.  
-The desktop GUI, web app, and CLI all reuse the same core for consistent behavior.
-
-### Modular Bridge-Type System
-Each bridge type includes:
-- DTO (input model schema)
-- Initial sizing routines
-- Structural analysis configuration
-- Design and code-check modules
-- CAD geometry generation
-- Report generation utilities
-
-### Reusable Bridge Components
-Common structural elements are defined in `bridge_components/`:
-- Girders  
-- Decks  
-- Crash barriers  
-- Pedestals  
-- Piers  
-- Foundations  
-- Piles and pile caps  
-
-Components are shared across multiple bridge types.
-
-### Multi-Solver Analysis Support
-Multiple analysis backends are supported:
-- Native lightweight FEM solver  
-- OpenSeesPy  
-- OspGrillage  
-
-Solvers are switchable at runtime via adapters.
-
-### Integrated Indian Standards
-Included under `core/utils/codes/`:
-- IRC:6–2017  
-- IRC:22–2015  
-- IRC:24–2010  
-
-These modules provide load models, combinations, material factors, and code checks.
-
----
-
-## Project Structure
-
-```
-OsdagBridge/
-├── docs/
-├── examples/
-├── tests/
-└── src/
-    └── osdagbridge/
-        ├── core/              # Analysis, design, IO, solvers, codes
-        ├── bridge_types/      # Plate girder, box girder, truss
-        ├── bridge_components/ # Reusable components
-        ├── cli/               # Command-line interface
-        ├── desktop/           # PySide6 GUI
-        └── web/               # Django + React web stack
-```
-
----
-
-## Installation
-
-Clone the repository:
+Use Python 3.11 or 3.12. For the desktop application, the repository's Conda environment is recommended because Osdag, Qt, and CAD dependencies may be needed:
 
 ```bash
-git clone https://github.com/osdag-admin/OsdagBridge.git
+git clone https://github.com/Chandhra103/OsdagBridge.git
 cd OsdagBridge
-```
-
-Install in editable mode:
-
-```bash
-pip install -e .
-```
-
----
-
-## Usage
-
-### Command-Line Interface
-
-Run an analysis:
-
-```bash
-osdagbridge analyze project.yaml --solver native
-```
-
-Generate a report:
-
-```bash
-osdagbridge report project.yaml report.pdf
-```
-
-### Desktop Application
-
-```bash
-python -m osdagbridge.desktop
-```
-
-### Task 2: CAD editing and analysis plots
-
-In the typical-section cross-section view, double-click the displayed Carriageway
-Width, Girder Spacing, or Deck Thickness label to edit it inline. In the plan/top
-view, double-click Span Length. Press Enter or click outside to validate and
-apply a value; press Escape to cancel. Overhang, Overall Bridge Width, and
-Bracing Spacing remain derived, read-only dimensions. Values are synchronized
-with the corresponding input and layout calculation; invalid values are not
-applied.
-
-Additional Inputs rejects blank custom values before saving and warns when a
-modified dialog is dismissed. After analysis, the analysis member selector
-offers End Diaphragms and Intermediate Cross Bracings. These views use the
-analyzed load-case data; a clear no-data message is shown when a result is not
-available for the selected member/component. The existing longitudinal girder
-plots remain available.
-
-For a supported development environment, use Python 3.11 or 3.12 and the
-project's Conda environment (`environment.yml`) where possible. The desktop
-runtime also needs the existing Osdag installation and its Qt/CAD dependencies.
-
-```bash
 conda env create -f environment.yml
 conda activate osdagbridge-env
+python -m pip install -e .
+```
+
+The package declares `osdagbridge-cli` for CLI project utilities and `osdagbridge` for the desktop entry point. Desktop startup depends on the complete Osdag/Qt/CAD runtime; it is not verified on every platform.
+
+## CLI (limited project-file utilities)
+
+The CLI currently reads JSON, not YAML. Create a starter file, then inspect or validate it:
+
+```bash
+osdagbridge-cli --help
+osdagbridge-cli init bridge.json
+osdagbridge-cli validate bridge.json
+osdagbridge-cli inspect bridge.json
+```
+
+The starter envelope contains `project.name`, `project.bridge_type`, and `project.span_m`. `validate` checks only JSON shape and a positive finite span; it does not assess design inputs, code compliance, or structural adequacy. `analyze` currently exits nonzero and explicitly reports that analysis is not wired to this CLI. Report generation, solver selection, and export commands are not available through the CLI.
+
+## Desktop
+
+With the project environment installed, launch with:
+
+```bash
 python -m osdagbridge.desktop
 ```
 
-Run focused tests with `pytest -q tests/unit`. OpenSeesPy and the full desktop
-stack are required to verify solver-backed and interactive GUI behavior; the
-pure-Python unit tests do not substitute for those runtime checks.
+Task 2 behavior and operating notes are described in [`docs/INTERNSHIP_SUBMISSION.md`](docs/INTERNSHIP_SUBMISSION.md). Interactive GUI behavior requires a supported graphical runtime and has not been exhaustively tested in this environment.
 
-### Web Application
+## Web status
 
-Backend:
+The repository's Django backend and React frontend are placeholders. There is no complete API, integrated frontend, or deployment configuration. Do not run the old web commands found in earlier documentation as if they started a functional application. No public deployment URL is available.
 
-```bash
-python src/osdagbridge/web/backend/manage.py runserver
-```
+## Tests
 
-Frontend:
+Run from the repository root:
 
 ```bash
-cd src/osdagbridge/web/frontend
-npm install
-npm start
+PYTHONPATH=src python -m pytest -q
 ```
 
----
+The CI workflow is `.github/workflows/python-tests.yml`. A passing Python test suite does not verify solver engineering accuracy, interactive GUI behavior, or deployment. See [`docs/TESTING.md`](docs/TESTING.md) for the scope and limitations.
 
-## Testing
+## Development documentation
 
-Run the complete test suite:
+- [Architecture and capability boundaries](docs/architecture.md)
+- [User guide](docs/user_guide.md)
+- [Developer guide](docs/developer_guide.md)
+- [Test scope and verification](docs/TESTING.md)
+- [FOSSEE Task 2 implementation summary](docs/INTERNSHIP_SUBMISSION.md)
+- [Known deployment blockers](docs/DEPLOYMENT.md)
 
-```bash
-pytest -q
-```
+## Project layout
 
-Continuous integration runs automatically through GitHub Actions (`.github/workflows/ci.yml`).
+- `src/osdagbridge/core/` — shared engineering and geometry modules
+- `src/osdagbridge/desktop/` — PySide6 desktop application
+- `src/osdagbridge/cli/` — small JSON project-file CLI
+- `src/osdagbridge/web/` — incomplete web scaffolding
+- `tests/` — unit and integration tests
 
----
+## Contributing and license
 
-## Development Guidelines
-
-### Key Code Locations
-- Core logic: `src/osdagbridge/core/`
-- Codes & standards: `src/osdagbridge/core/utils/codes/`
-- Bridge types: `src/osdagbridge/bridge_types/`
-- Components: `src/osdagbridge/bridge_components/`
-- CLI: `src/osdagbridge/cli/`
-- Desktop GUI: `src/osdagbridge/desktop/`
-- Web backend/frontend: `src/osdagbridge/web/`
-
-### Contribution Workflow
-1. Fork the repository  
-2. Create a feature branch  
-3. Ensure all tests pass (`pytest`)  
-4. Submit a pull request
-
----
-
-## Acknowledgements
-
-OsdagBridge is part of the Osdag project, promoting open-source tools for steel design education, research, and practice.
-
----
-
-## License
-
-This project is licensed under the MIT License.  
-See the `LICENSE` file for full details.
+Please run the test suite before proposing changes and distinguish verified behavior from work in progress. This project is licensed under the MIT License; see [`LICENSE`](LICENSE).
