@@ -68,6 +68,13 @@ The CI workflow is `.github/workflows/python-tests.yml`. A passing Python test s
 - [User guide](docs/user_guide.md)
 - [Developer guide](docs/developer_guide.md)
 - [Test scope and verification](docs/TESTING.md)
+- [Master development audit](docs/MASTER_DEVELOPMENT_AUDIT.md)
+- [Test report](docs/TEST_REPORT.md)
+- [Final acceptance matrix](docs/FINAL_ACCEPTANCE_REPORT.md)
+- [Licensing and dependency review](docs/LICENSING_AND_DEPENDENCIES.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Development progress](docs/DEVELOPMENT_PROGRESS.md)
+- [Project report](docs/PROJECT_REPORT.md)
 - [FOSSEE Task 2 implementation summary](docs/INTERNSHIP_SUBMISSION.md)
 - [Known deployment blockers](docs/DEPLOYMENT.md)
 
@@ -76,9 +83,9 @@ The CI workflow is `.github/workflows/python-tests.yml`. A passing Python test s
 - `src/osdagbridge/core/` — shared engineering and geometry modules
 - `src/osdagbridge/desktop/` — PySide6 desktop application
 - `src/osdagbridge/cli/` — small JSON project-file CLI
-- `src/osdagbridge/web/` — incomplete web scaffolding
+- `web/` — incomplete Django/React scaffolding
 - `tests/` — unit and integration tests
 
 ## Contributing and license
 
-Please run the test suite before proposing changes and distinguish verified behavior from work in progress. This project is licensed under the MIT License; see [`LICENSE`](LICENSE).
+Please run the test suite before proposing changes and distinguish verified behavior from work in progress. **The repository has a license conflict:** `LICENSE` contains GPLv3 text, while `pyproject.toml` advertises an MIT classifier and older project descriptions claim MIT. No license choice has been made here; see [`docs/LICENSING_AND_DEPENDENCIES.md`](docs/LICENSING_AND_DEPENDENCIES.md) and resolve this with the project owner before redistribution.

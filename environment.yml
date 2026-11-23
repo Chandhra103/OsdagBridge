@@ -17,6 +17,7 @@ dependencies:
   - shapely
   - scipy>=1.10.1
   - pydantic
+  - pyyaml>=6.0
   - xarray
 
   # development install

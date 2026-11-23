@@ -5,6 +5,7 @@ scipy>=1.10.1
 fiona
 shapely
 pydantic
+PyYAML>=6.0
 xarray
 ifcopenshell
 openpyxl

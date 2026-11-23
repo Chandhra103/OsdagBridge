@@ -8,6 +8,7 @@
 - `python -m compileall -q src/osdagbridge tests` — completed successfully.
 - `git diff --check` — completed successfully.
 - CLI smoke check: `python -m osdagbridge.cli --help`, `init`, and `validate` completed successfully.
+- On the subsequent `opencode-first-audit` branch, analyzer, designer, and IO no-op tests were replaced with behavior tests. Latest full local run: `PYTHONPATH=src python -m pytest -q` — 61 passed, 2 skipped; the skips require OpenSeesPy, which is not installed in this environment. A focused IO run passed 2 tests.
 
 ## Scope limits
 
