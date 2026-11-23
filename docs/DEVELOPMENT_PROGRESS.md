@@ -3,9 +3,8 @@
 ## Current state
 
 - Working branch: `opencode-first-audit`.
-- Latest published base commit: `4e992017974d115458cca6e9e6d6e3f5bfbceea3` (`Document verified CI results for audit branch`).
-- New web-foundation edits are being prepared on this branch for publication; dependency-backed backend/frontend verification is still pending.
-- Latest published base CI [45104347408](https://github.com/Chandhra103/OsdagBridge/actions/runs/45104347408) passed. The Python suite on the prior code fix reported 61 passed, 2 skipped; analyzer/designer modules skip because the runner cannot load OpenSeesPy (`libblas.so.3` missing).
+- Published web-foundation commit: `7e0090ff498b5fd42d5ad19e612798304489e717` (`Add initial Django and React web workspace`). The code, tests, setup guide, and Vercel guidance are on `origin/opencode-first-audit`.
+- GitHub Actions run [45108262874](https://github.com/Chandhra103/OsdagBridge/actions/runs/45108262874) passed: Python suite 61 passed, 3 skipped; dependency-free Node tests 2 passed; backend source compile passed. The skips include analyzer/designer (runner lacks loadable OpenSeesPy native BLAS) and Django API tests (Django/DRF not installed in CI).
 - Starting commit: `3db5fc8f7a438335cecb3dd770f3cea287e40f3a`, already published on `complete-osdagbridge-development`.
 - The branch retains Task 2 changes. The Task 2 remote is `0b687d6e58507b79e4c1a841cb813821847f2e26`; `dev` was observed at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. Neither branch has been changed by this work.
 - Baseline before this audit: `PYTHONPATH=src python -m pytest -q` — 62 passed.
@@ -34,7 +33,7 @@ The actual web code is at root `web/`, not under `src/osdagbridge/web/`. At the 
 
 ## Next exact work
 
-1. Check GitHub Actions on the published commit; await explicit approval before installing the listed web dependencies, then run migrations/API tests, start the API, build the frontend, and verify Vite-to-Django integration.
+1. Await explicit approval before installing the listed web dependencies, then run migrations/API tests, start the API, build the frontend, and verify Vite-to-Django integration.
 2. Add authenticated material/section data, loads/combinations, engineering service integration only after validating reusable core services; analysis/results remain unavailable until a tested solver path exists.
 3. Resolve with the project owner the GPLv3-versus-MIT metadata conflict before any release/distribution; perform third-party license attribution review.
 4. Extend tests and security/configuration work; password reset, PostgreSQL production support, CAD/3D, reports beyond input JSON, and browser end-to-end acceptance remain incomplete.

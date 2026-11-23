@@ -43,7 +43,7 @@ Build the static frontend with `npm run build`; output is written to `web/fronte
 
 ## Vercel
 
-The repository root is not a Vercel Python function. For a frontend-only Vercel preview, deploy the `opencode-first-audit` branch and set the Vercel project's **Root Directory** to `web/frontend`; use the Vite preset, `npm run build`, and `dist` as the output directory. The earlier `PYTHON_ENTRYPOINT_NOT_FOUND` deployment used the `dev` branch and attempted to detect a Python application at the repository root. That branch does not contain this new frontend implementation.
+The repository root is not a Vercel Python function. For a frontend-only Vercel preview, deploy the `opencode-first-audit` branch and set the Vercel project's **Root Directory** to `web/frontend`; use the Vite preset, `npm run build`, and `dist` as the output directory. The earlier `PYTHON_ENTRYPOINT_NOT_FOUND` deployment used the `dev` branch and attempted to detect a Python application at the repository root. That branch does not contain this new frontend implementation. See Vercel's [Python entrypoint rules](https://vercel.com/docs/functions/runtimes/python), [Django deployment guide](https://vercel.com/docs/frameworks/full-stack/django), [Vite guide](https://vercel.com/docs/frameworks/frontend/vite), and [root-directory settings](https://vercel.com/docs/builds/configure-a-build).
 
 This setting only builds the static frontend. The current code has no hosted Django API or Vercel service routing, and `VITE_API_BASE` defaults to `/api`; therefore account/project operations will not work on a static Vercel deployment until a compatible Django API is deployed and routed. Do not treat a successful static frontend build as a working full-stack deployment.
 
