@@ -264,3 +264,6 @@ src/osdag_map_cache/
 temp_plot.html
 *.html
 tools/
+!web/frontend/index.html
+**/node_modules/
+web/frontend/.vercel/

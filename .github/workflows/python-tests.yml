@@ -20,6 +20,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[test]'
       - name: Compile application modules
-        run: python -m compileall -q src/osdagbridge
+        run: |
+          python -m compileall -q src/osdagbridge
+          python -m compileall -q web/backend
       - name: Run test suite
         run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run dependency-free frontend tests
+        run: node --test web/frontend/src/api/project-data.test.js
