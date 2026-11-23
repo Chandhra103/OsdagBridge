@@ -1,6 +1,9 @@
 import pytest
 
-pytest.importorskip("openseespy.opensees", reason="OpenSeesPy is required by the analysis module")
+try:
+    import openseespy.opensees  # noqa: F401
+except Exception as exc:
+    pytest.skip(f"OpenSeesPy is unavailable: {exc}", allow_module_level=True)
 
 from osdagbridge.core.bridge_types.plate_girder.analyser import BridgeGrillageModel
 from osdagbridge.core.bridge_types.plate_girder.dto import DeckLayoutProperties, GrillageGeometry

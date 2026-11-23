@@ -1,6 +1,9 @@
 import pytest
 
-pytest.importorskip("openseespy.opensees", reason="OpenSeesPy is required by the design module")
+try:
+    import openseespy.opensees  # noqa: F401
+except Exception as exc:
+    pytest.skip(f"OpenSeesPy is unavailable: {exc}", allow_module_level=True)
 
 from osdagbridge.core.bridge_types.plate_girder.designer import DCREngine
 from osdagbridge.core.utils.codes.keyfile import DCR_FAIL_THRESHOLD, DCR_PASS_THRESHOLD
