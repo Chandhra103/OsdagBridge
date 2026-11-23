@@ -16,7 +16,7 @@
 | Reports/IFC/BOQ | Partial source implementations | Some core paths exist | Not comprehensively tested | Output completeness not verified | PARTIAL |
 | Packaging/dependency consistency | Partial, conflicting manifests | PyYAML declaration added across manifests; not clean-installed | No clean package build | No cross-platform validation | PARTIAL |
 | License/provenance | Conflicting declarations | Not reconciled | Not applicable | No legal/provenance review | BLOCKED |
-| CI on current work branch | Workflow exists and includes this branch | Full Python suite configured | Parent branch run passed 62 tests; this branch run pending | Current branch CI not yet confirmed | PARTIAL |
+| CI on current work branch | Workflow exists and includes this branch | Full Python suite configured | Run 45104162018 passed on `7c380548d7774423d9f0fc105803861d1913a9e7`: 61 passed, 2 skipped | Verified workflow success; analyzer/designer modules skipped because OpenSeesPy native loader requires missing `libblas.so.3` | PARTIAL |
 | Production web deployment/browser acceptance | No deployable app/configuration | No | No | No public URL | MISSING |
 | FOSSEE Task 2 written summary | Existing report | N/A | Test summaries documented | No authentic screenshots captured | PARTIAL |
 

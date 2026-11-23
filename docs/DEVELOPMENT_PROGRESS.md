@@ -3,10 +3,13 @@
 ## Current state
 
 - Working branch: `opencode-first-audit`.
+- Latest published commit: `7c380548d7774423d9f0fc105803861d1913a9e7` (`Handle OpenSeesPy native import failures in tests`).
+- The audit and follow-up fix are pushed to `origin/opencode-first-audit`; worktree was clean after the push.
+- GitHub Actions run [45104162018](https://github.com/Chandhra103/OsdagBridge/actions/runs/45104162018) passed on the latest commit: 61 passed, 2 skipped. The skips are analyzer/designer modules because OpenSeesPy's native library cannot load (`libblas.so.3` missing on the runner).
 - Starting commit: `3db5fc8f7a438335cecb3dd770f3cea287e40f3a`, already published on `complete-osdagbridge-development`.
 - The branch retains Task 2 changes. The Task 2 remote is `0b687d6e58507b79e4c1a841cb813821847f2e26`; `dev` was observed at `d74f56dd7f22925fb8148cabf5740ed8d1e39ff3`. Neither branch has been changed by this work.
 - Baseline before this audit: `PYTHONPATH=src python -m pytest -q` — 62 passed.
-- The current task branch was created locally from the clean published development commit. This audit increment has not yet been pushed; remote status must be updated after an actual push.
+- `dev` and `task2-ui-cad-transverse-plotting` were preserved; neither was changed by this work.
 
 ## Completed before this continuation
 
@@ -23,11 +26,12 @@ The actual web code is at root `web/`, not under `src/osdagbridge/web/`. `web/ba
 - Replaced the no-op unit tests for analyser setup, DCR classification, and project JSON reading with behavioral tests. Analyzer/designer tests are dependency-guarded because OpenSeesPy is missing in this environment.
 - Declared PyYAML, which is imported by desktop YAML project save/load, in `pyproject.toml`, `requirements.txt`, and `environment.yml`. No package installation was performed.
 - Updated README license wording to state the actual metadata conflict without selecting a license. No fake engineering or web functionality was introduced.
-- Latest local checks: `tests/unit/test_io.py` — 2 passed; full suite — 61 passed, 2 skipped (OpenSeesPy missing); compileall, TOML parsing, README documentation-link audit, and `git diff --check` passed.
+- Latest local checks: `tests/unit/test_io.py` — 2 passed; full suite — 61 passed, 2 skipped (OpenSeesPy unavailable); compileall, TOML parsing, README documentation-link audit, and `git diff --check` passed. After CI exposed an OpenSeesPy loader exception rather than a missing module, the guards were updated to skip only if the dependency fails to import; the tests still run when it loads successfully.
+- Latest remote verification: GitHub Actions run 45104162018 passed on commit `7c380548d7774423d9f0fc105803861d1913a9e7` (61 passed, 2 skipped). The earlier run on `3c0f55e` failed collection because the native library could not load; the guard fix resolved that CI failure without hiding test failures after successful import.
 
 ## Next exact work
 
-1. Push this branch, check its GitHub Actions result, and update the branch/CI status in this file.
+1. No further branch/CI status update is pending for this increment; latest push and CI are recorded above.
 2. Replace the remaining vacuous web API test only when a functioning API exists and can be tested.
 3. Resolve with the project owner the GPLv3-versus-MIT metadata conflict before any release/distribution; perform third-party license attribution review.
 4. Decide/implement a consistent dependency strategy; PyYAML is now declared, but PySide6 is still absent from `pyproject.toml` and the web/frontend toolchain is unimplemented. No packages have been installed in this continuation.

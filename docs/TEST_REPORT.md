@@ -9,16 +9,16 @@ PYTHONPATH=src python -m pytest -q
 62 passed in 0.40s
 ```
 
-After replacing the analyser, designer, and IO no-op tests and adding the PyYAML manifest declaration, the current local result was:
+After replacing the analyser, designer, and IO no-op tests, adding the PyYAML manifest declaration, and correcting the solver import guard, the latest local result was:
 
 ```text
 PYTHONPATH=src python -m pytest -q
-61 passed, 2 skipped in 0.26s
+61 passed, 2 skipped in 0.22s
 ```
 
-The two analyzer/designer test modules are skipped because `openseespy.opensees` is not installed in this execution environment. An initial unguarded run failed during collection with `ModuleNotFoundError`; no package installation was attempted. CI installs the declared package dependency and should run these tests, but its result for this branch must be checked separately.
+The two analyzer/designer test modules are skipped because OpenSeesPy cannot be imported in this environment. The CI runner installs the Python package, but its native module fails to load because `libblas.so.3` is absent. The module-level guard now skips only when the import raises; when OpenSeesPy imports successfully, the behavior tests execute normally. No package installation or CI runner system-package change was made in this continuation.
 
-There were no failures or skips in that run. The parent development commit also had a successful GitHub Actions run for the complete configured test suite. The CI run URL for that commit is available in the repository history/chat; this report does not claim CI has run against this new branch until checked after its push.
+The latest branch commit `7c380548d7774423d9f0fc105803861d1913a9e7` passed GitHub Actions run [45104162018](https://github.com/Chandhra103/OsdagBridge/actions/runs/45104162018): 61 passed, 2 skipped in 0.26s. The preceding run on `3c0f55e` failed collection because the guard did not catch the native-loader exception; the follow-up run passed after the guard was corrected. The parent development commit also had a successful GitHub Actions run for its configured suite.
 
 ## Interpretation and limitations
 
@@ -32,4 +32,4 @@ No GUI session, React test/build, Django API test, database migration, OpenSeesP
 
 ## Required next verification
 
-Run the full Python suite and compile check after all code edits; add meaningful tests for every claimed workflow; then separately run a supported desktop environment, solver reference models, API/database tests, frontend build, and deployment/browser acceptance. Report each actual result separately.
+Run the full Python suite and compile check after subsequent code edits; resolve the CI runner's native BLAS dependency if analyzer/designer tests must execute in CI; add meaningful tests for every claimed workflow; then separately run a supported desktop environment, solver reference models, API/database tests, frontend build, and deployment/browser acceptance. Report each actual result separately.
